@@ -78,7 +78,7 @@ export fn shortExceptionHandlerAt0x1000() linksection(".text.exception") void {
     exceptionHandler();
 }
 
-pub fn panic(message: []const u8, trace: ?*builtin.StackTrace) noreturn {
+pub fn panic(message: []const u8, trace: ?*std.builtin.StackTrace) noreturn {
     debug.panic(trace, "KERNEL PANIC: {}", .{message});
 }
 

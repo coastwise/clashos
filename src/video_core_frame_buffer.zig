@@ -17,7 +17,7 @@ pub const FrameBuffer = struct {
     overscan_left: u32,
     overscan_right: u32,
 
-    fn clear(fb: *FrameBuffer, color: Color) void {
+    pub fn clear(fb: *FrameBuffer, color: Color) void {
         var y: u32 = 0;
         while (y < fb.virtual_height) : (y += 1) {
             var x: u32 = 0;
@@ -27,7 +27,7 @@ pub const FrameBuffer = struct {
         }
     }
 
-    fn clearRect(fb: *FrameBuffer, x2: u32, y2: u32, width: u32, height: u32, color: Color) void {
+    pub fn clearRect(fb: *FrameBuffer, x2: u32, y2: u32, width: u32, height: u32, color: Color) void {
         var y: u32 = 0;
         while (y < height) : (y += 1) {
             var x: u32 = 0;
@@ -37,14 +37,14 @@ pub const FrameBuffer = struct {
         }
     }
 
-    fn drawPixel(fb: *FrameBuffer, x: u32, y: u32, color: Color) void {
+    pub fn drawPixel(fb: *FrameBuffer, x: u32, y: u32, color: Color) void {
         assert(x < fb.virtual_width);
         assert(y < fb.virtual_height);
         const offset = y * fb.pitch + x;
         fb.drawPixel32(x, y, color.to32());
     }
 
-    fn drawPixel32(fb: *FrameBuffer, x: u32, y: u32, color: u32) void {
+    pub fn drawPixel32(fb: *FrameBuffer, x: u32, y: u32, color: u32) void {
         if (x >= fb.virtual_width or y >= fb.virtual_height) {
             panic(@errorReturnTrace(), "frame buffer index {}, {} does not fit in {}x{}", .{ x, y, fb.virtual_width, fb.virtual_height });
         }
@@ -118,7 +118,7 @@ pub const Bitmap = struct {
     width: u31,
     height: u31,
 
-    fn getU32(base: [*]u8, offset: u32) u32 {
+    pub fn getU32(base: [*]u8, offset: u32) u32 {
         var word: u32 = 0;
         var i: u32 = 0;
         while (i <= 3) : (i += 1) {
@@ -135,7 +135,7 @@ pub const Bitmap = struct {
         bitmap.height = @intCast(u31, getU32(file.ptr, 0x16));
     }
 
-    fn getPixel(self: *Bitmap, x: u32, y: u32) Color {
+    pub fn getPixel(self: *Bitmap, x: u32, y: u32) Color {
         const rgba = getU32(self.pixel_array, ((self.height - 1 - y) * self.width + x) * @sizeOf(u32));
         return Color{
             .red = @intCast(u8, (rgba >> 16) & 0xff),
@@ -145,7 +145,7 @@ pub const Bitmap = struct {
         };
     }
 
-    fn drawRect(self: *Bitmap, width: u32, height: u32, x1: u32, y1: u32, x2: u32, y2: u32) void {
+    pub fn drawRect(self: *Bitmap, width: u32, height: u32, x1: u32, y1: u32, x2: u32, y2: u32) void {
         var y: u32 = 0;
         while (y < height) : (y += 1) {
             var x: u32 = 0;
@@ -174,7 +174,7 @@ pub const Color = struct {
     blue: u8,
     alpha: u8,
 
-    fn to32(color: Color) u32 {
+    pub fn to32(color: Color) u32 {
         return (255 - @intCast(u32, color.alpha) << 24) | @intCast(u32, color.red) << 16 | @intCast(u32, color.green) << 8 | @intCast(u32, color.blue) << 0;
     }
 };

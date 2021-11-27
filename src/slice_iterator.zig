@@ -11,21 +11,21 @@ pub fn of(comptime T: type) type {
             return self;
         }
 
-        fn reset(self: *Self) void {
+        pub fn reset(self: *Self) void {
             self.index = 0;
         }
 
-        fn add(self: *Self, item: T) void {
+        pub fn add(self: *Self, item: T) void {
             self.advance();
             self.data[self.index - 1] = item;
         }
 
-        fn next(self: *Self) u32 {
+        pub fn next(self: *Self) u32 {
             self.advance();
             return self.data[self.index - 1];
         }
 
-        fn advance(self: *Self) void {
+        pub fn advance(self: *Self) void {
             if (self.index < self.data.len) {
                 self.index += 1;
             } else {

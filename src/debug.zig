@@ -30,7 +30,7 @@ const source_files = [_][]const u8{
 
 var already_panicking: bool = false;
 
-pub fn panic(stack_trace: ?*builtin.StackTrace, comptime fmt: []const u8, args: var) noreturn {
+pub fn panic(stack_trace: ?*std.builtin.StackTrace, comptime fmt: []const u8, args: anytype) noreturn {
     @setCold(true);
     if (already_panicking) {
         serial.log("\npanicked during kernel panic", .{});
@@ -54,30 +54,31 @@ pub fn wfe_hang() noreturn {
     }
 }
 
-fn dwarfSectionFromSymbolAbs(start: *u8, end: *u8) std.debug.DwarfInfo.Section {
-    return std.debug.DwarfInfo.Section{
-        .offset = 0,
-        .size = @ptrToInt(end) - @ptrToInt(start),
-    };
-}
+// fn dwarfSectionFromSymbolAbs(start: *u8, end: *u8) std.dwarf.DwarfInfo.Section {
+//     return std.dwarf.DwarfInfo.Section{
+//         .offset = 0,
+//         .size = @ptrToInt(end) - @ptrToInt(start),
+//     };
+// }
 
-fn dwarfSectionFromSymbol(start: *u8, end: *u8) std.debug.DwarfInfo.Section {
-    return std.debug.DwarfInfo.Section{
-        .offset = @ptrToInt(start),
-        .size = @ptrToInt(end) - @ptrToInt(start),
-    };
-}
+// fn dwarfSectionFromSymbol(start: *u8, end: *u8) std.dwarf.DwarfInfo.Section {
+//     return std.dwarf.DwarfInfo.Section{
+//         .offset = @ptrToInt(start),
+//         .size = @ptrToInt(end) - @ptrToInt(start),
+//     };
+// }
 
-fn getSelfDebugInfo() !*std.debug.DwarfInfo {
+fn getSelfDebugInfo() !*std.dwarf.DwarfInfo {
     const S = struct {
         var have_self_debug_info = false;
-        var self_debug_info: std.debug.DwarfInfo = undefined;
+        var self_debug_info: std.dwarf.DwarfInfo = undefined;
 
         var in_stream_state = std.io.InStream(anyerror){ .readFn = readFn };
         var in_stream_pos: u64 = 0;
         const in_stream = &in_stream_state;
 
         fn readFn(self: *std.io.InStream(anyerror), buffer: []u8) anyerror!usize {
+            _ = self;
             const ptr = @intToPtr([*]const u8, in_stream_pos);
             @memcpy(buffer.ptr, ptr, buffer.len);
             in_stream_pos += buffer.len;
@@ -95,24 +96,28 @@ fn getSelfDebugInfo() !*std.debug.DwarfInfo {
         const seekable_stream = &seekable_stream_state;
 
         fn seekToFn(self: *SeekableStream, pos: u64) anyerror!void {
+            _ = self;
             in_stream_pos = pos;
         }
         fn seekByFn(self: *SeekableStream, pos: i64) anyerror!void {
+            _ = self;
             in_stream_pos = @bitCast(usize, @bitCast(isize, in_stream_pos) +% pos);
         }
         fn getPosFn(self: *SeekableStream) anyerror!u64 {
+            _ = self;
             return in_stream_pos;
         }
         fn getEndPosFn(self: *SeekableStream) anyerror!u64 {
+            _ = self;
             return @as(u64, @ptrToInt(&__debug_ranges_end));
         }
     };
     if (S.have_self_debug_info) return &S.self_debug_info;
 
-    S.self_debug_info = std.debug.DwarfInfo{
-        .dwarf_seekable_stream = S.seekable_stream,
-        .dwarf_in_stream = S.in_stream,
-        .endian = builtin.Endian.Little,
+    S.self_debug_info = std.dwarf.DwarfInfo{
+        //.dwarf_seekable_stream = S.seekable_stream,
+        //.dwarf_in_stream = S.in_stream,
+        .endian = std.builtin.Endian.Little,
         .debug_info = dwarfSectionFromSymbol(&__debug_info_start, &__debug_info_end),
         .debug_abbrev = dwarfSectionFromSymbolAbs(&__debug_abbrev_start, &__debug_abbrev_end),
         .debug_str = dwarfSectionFromSymbolAbs(&__debug_str_start, &__debug_str_end),
@@ -129,6 +134,7 @@ fn getSelfDebugInfo() !*std.debug.DwarfInfo {
 var serial_out_stream_state = std.io.OutStream(anyerror){
     .writeFn = struct {
         fn logWithSerial(self: *std.io.OutStream(anyerror), bytes: []const u8) anyerror!void {
+            _ = self;
             serial.writeText(bytes);
         }
     }.logWithSerial,
@@ -138,32 +144,34 @@ var kernel_panic_allocator_bytes: [5 * 1024 * 1024]u8 = undefined;
 var kernel_panic_allocator_state = std.heap.FixedBufferAllocator.init(kernel_panic_allocator_bytes[0..]);
 const kernel_panic_allocator = &kernel_panic_allocator_state.allocator;
 
-pub fn dumpStackTrace(stack_trace: *const builtin.StackTrace) void {
-    const dwarf_info = getSelfDebugInfo() catch |err| {
-        serial.log("Unable to dump stack trace: Unable to open debug info: {}", .{@errorName(err)});
-        return;
-    };
-    writeStackTrace(stack_trace, dwarf_info) catch |err| {
-        serial.log("Unable to dump stack trace: {}", .{@errorName(err)});
-        return;
-    };
+pub fn dumpStackTrace(stack_trace: *const std.builtin.StackTrace) void {
+    serial.log("Unable to dump stack trace: not implemented", .{});
+    // const dwarf_info = getSelfDebugInfo() catch |err| {
+    //     serial.log("Unable to dump stack trace: Unable to open debug info: {}", .{@errorName(err)});
+    //     return;
+    // };
+    // writeStackTrace(stack_trace, dwarf_info) catch |err| {
+    //     serial.log("Unable to dump stack trace: {}", .{@errorName(err)});
+    //     return;
+    // };
 }
 
 pub fn dumpCurrentStackTrace(start_addr: ?usize) void {
-    const dwarf_info = getSelfDebugInfo() catch |err| {
-        serial.log("Unable to dump stack trace: Unable to open debug info: {}", .{@errorName(err)});
-        return;
-    };
-    writeCurrentStackTrace(dwarf_info, start_addr) catch |err| {
-        serial.log("Unable to dump stack trace: {}", .{@errorName(err)});
-        return;
-    };
+    serial.log("Unable to dump stack trace: not implemented", .{});
+    // const dwarf_info = getSelfDebugInfo() catch |err| {
+    //     serial.log("Unable to dump stack trace: Unable to open debug info: {}", .{@errorName(err)});
+    //     return;
+    // };
+    // writeCurrentStackTrace(dwarf_info, start_addr) catch |err| {
+    //     serial.log("Unable to dump stack trace: {}", .{@errorName(err)});
+    //     return;
+    // };
 }
 
-fn printLineFromBuffer(out_stream: var, contents: []const u8, line_info: std.debug.LineInfo) anyerror!void {
+fn printLineFromBuffer(out_stream: anytype, contents: []const u8, line_info: std.debug.LineInfo) anyerror!void {
     var line: usize = 1;
     var column: usize = 1;
-    var abs_index: usize = 0;
+    //var abs_index: usize = 0;
     for (contents) |byte| {
         if (line == line_info.line) {
             try out_stream.writeByte(byte);
@@ -181,7 +189,7 @@ fn printLineFromBuffer(out_stream: var, contents: []const u8, line_info: std.deb
     return error.EndOfFile;
 }
 
-fn printLineFromFile(out_stream: var, line_info: std.debug.LineInfo) anyerror!void {
+fn printLineFromFile(out_stream: anytype, line_info: std.debug.LineInfo) anyerror!void {
     inline for (source_files) |src_path| {
         if (std.mem.endsWith(u8, line_info.file_name, src_path)) {
             const contents = @embedFile("../" ++ src_path);
@@ -192,7 +200,7 @@ fn printLineFromFile(out_stream: var, line_info: std.debug.LineInfo) anyerror!vo
     try out_stream.print("(source file {} not added in std/debug.zig)\n", .{line_info.file_name});
 }
 
-fn writeCurrentStackTrace(dwarf_info: *std.debug.DwarfInfo, start_addr: ?usize) !void {
+fn writeCurrentStackTrace(dwarf_info: *std.dwarf.DwarfInfo, start_addr: ?usize) !void {
     var it = std.debug.StackIterator.init(start_addr);
     while (it.next()) |return_address| {
         try dwarf_info.printSourceAtAddress(
@@ -204,7 +212,7 @@ fn writeCurrentStackTrace(dwarf_info: *std.debug.DwarfInfo, start_addr: ?usize) 
     }
 }
 
-fn writeStackTrace(stack_trace: *const builtin.StackTrace, dwarf_info: *std.debug.DwarfInfo) !void {
+fn writeStackTrace(stack_trace: *const builtin.StackTrace, dwarf_info: *std.dwarf.DwarfInfo) !void {
     var frame_index: usize = undefined;
     var frames_left: usize = undefined;
     if (stack_trace.index < stack_trace.instruction_addresses.len) {

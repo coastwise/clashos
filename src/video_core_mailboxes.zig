@@ -20,12 +20,12 @@ const Mailbox = packed struct {
         return @intToPtr(*Mailbox, PERIPHERAL_BASE + MAILBOXES_OFFSET + index * @sizeOf(Mailbox));
     }
 
-    fn pushRequestBlocking(this: *Mailbox, request: u32) void {
+    pub fn pushRequestBlocking(this: *Mailbox, request: u32) void {
         blockWhile(this, isFull);
         this.push(request);
     }
 
-    fn pullResponseBlocking(this: *Mailbox, request: u32) void {
+    pub fn pullResponseBlocking(this: *Mailbox, request: u32) void {
         blockWhile(this, isEmpty);
         const response = this.pull();
         if (response != request) {
