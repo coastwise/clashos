@@ -115,10 +115,12 @@ pub fn init() void {
     mmio.write(AUX_MU_CNTL_REG, 3);
 }
 
+var log_fmt_allocator_bytes: [100 * 1024]u8 = undefined;
+var log_fmt_allocator_state = std.heap.FixedBufferAllocator.init(log_fmt_allocator_bytes[0..]);
+const log_fmt_allocator = &log_fmt_allocator_state.allocator;
+
 pub fn log(comptime format: []const u8, args: anytype) void {
-    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-    defer arena.deinit();
-    const text = std.fmt.allocPrint(&arena.allocator, format ++ "\n", args) catch |e| switch (e) {
+    const text = std.fmt.allocPrint(log_fmt_allocator, format ++ "\n", args) catch |e| switch (e) {
         error.OutOfMemory => "ERROR: not enough memory to log with std.fmt!!\n"
     };
     writeText(text);
