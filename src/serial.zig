@@ -115,16 +115,44 @@ pub fn init() void {
     mmio.write(AUX_MU_CNTL_REG, 3);
 }
 
-var log_fmt_allocator_bytes: [100 * 1024]u8 = undefined;
-var log_fmt_allocator_state = std.heap.FixedBufferAllocator.init(log_fmt_allocator_bytes[0..]);
-const log_fmt_allocator = &log_fmt_allocator_state.allocator;
+
+
+const LogWriter = struct {
+    pub const WriteError = error{};
+    pub const Writer = std.io.Writer(*Self, WriteError, write);
+    const Self = @This();
+
+    pub fn writer(self: *Self) Writer {
+        return .{ .context = self };
+    }
+
+    pub fn write(self: *Self, bytes: []const u8) WriteError!usize {
+        var count: usize = 0;
+        for (bytes) |c| {
+            switch (c) {
+                '\n' => {
+                    writeByte('\r');
+                    writeByte('\n');
+                    count += 2;
+                },
+                else => {
+                    writeByte(c);
+                    count += 1;
+                }
+            }
+        }
+        return count;
+    }
+};
+
+var log_writer: LogWriter = .{};
+const log_stream = log_writer.writer();
 
 pub fn log(comptime format: []const u8, args: anytype) void {
-    const text = std.fmt.allocPrint(log_fmt_allocator, format ++ "\n", args) catch |e| switch (e) {
-        error.OutOfMemory => "ERROR: not enough memory to log with std.fmt!!\n"
-    };
-    writeText(text);
+    fmt.format(log_stream, format ++ "\n", args) catch |e| switch (e) {};
 }
+
+
 
 pub fn dumpMemory(address: usize, size: usize) void {
     var i: usize = 0;
