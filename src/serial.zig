@@ -116,14 +116,12 @@ pub fn init() void {
 }
 
 pub fn log(comptime format: []const u8, args: anytype) void {
-    _ = format;
-    _ = args;
-    //fmt.format(logBytes, format ++ "\n", args) catch |e| switch (e) {};
-}
-
-fn logBytes(context: void, bytes: []const u8) NoError!void {
-    _ = context;
-    writeText(bytes);
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const text = std.fmt.allocPrint(&arena.allocator, format ++ "\n", args) catch |e| switch (e) {
+        error.OutOfMemory => "ERROR: not enough memory to log with std.fmt!!\n"
+    };
+    writeText(text);
 }
 
 pub fn dumpMemory(address: usize, size: usize) void {
