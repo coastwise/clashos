@@ -68,6 +68,11 @@ pub fn wfe_hang() noreturn {
 //     };
 // }
 
+fn ptrRangeToSlice(start: *u8, end: *u8) *[]u8 {
+    const size = @ptrToInt(end) - @ptrToInt(start);
+    return start[0..size];
+}
+
 fn getSelfDebugInfo() !*std.dwarf.DwarfInfo {
     const S = struct {
         var have_self_debug_info = false;
@@ -118,11 +123,11 @@ fn getSelfDebugInfo() !*std.dwarf.DwarfInfo {
         //.dwarf_seekable_stream = S.seekable_stream,
         //.dwarf_in_stream = S.in_stream,
         .endian = std.builtin.Endian.Little,
-        .debug_info = dwarfSectionFromSymbol(&__debug_info_start, &__debug_info_end),
-        .debug_abbrev = dwarfSectionFromSymbolAbs(&__debug_abbrev_start, &__debug_abbrev_end),
-        .debug_str = dwarfSectionFromSymbolAbs(&__debug_str_start, &__debug_str_end),
-        .debug_line = dwarfSectionFromSymbol(&__debug_line_start, &__debug_line_end),
-        .debug_ranges = dwarfSectionFromSymbolAbs(&__debug_ranges_start, &__debug_ranges_end),
+        .debug_info = ptrRangeToSlice(&__debug_info_start, &__debug_info_end),
+        .debug_abbrev = ptrRangeToSlice(&__debug_abbrev_start, &__debug_abbrev_end),
+        .debug_str = ptrRangeToSlice(&__debug_str_start, &__debug_str_end),
+        .debug_line = ptrRangeToSlice(&__debug_line_start, &__debug_line_end),
+        .debug_ranges = ptrRangeToSlice(&__debug_ranges_start, &__debug_ranges_end),
         .abbrev_table_list = undefined,
         .compile_unit_list = undefined,
         .func_list = undefined,
@@ -145,6 +150,7 @@ var kernel_panic_allocator_state = std.heap.FixedBufferAllocator.init(kernel_pan
 const kernel_panic_allocator = &kernel_panic_allocator_state.allocator;
 
 pub fn dumpStackTrace(stack_trace: *const std.builtin.StackTrace) void {
+    _ = stack_trace;
     serial.log("Unable to dump stack trace: not implemented", .{});
     // const dwarf_info = getSelfDebugInfo() catch |err| {
     //     serial.log("Unable to dump stack trace: Unable to open debug info: {}", .{@errorName(err)});
@@ -157,6 +163,7 @@ pub fn dumpStackTrace(stack_trace: *const std.builtin.StackTrace) void {
 }
 
 pub fn dumpCurrentStackTrace(start_addr: ?usize) void {
+    _ = start_addr;
     serial.log("Unable to dump stack trace: not implemented", .{});
     // const dwarf_info = getSelfDebugInfo() catch |err| {
     //     serial.log("Unable to dump stack trace: Unable to open debug info: {}", .{@errorName(err)});

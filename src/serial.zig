@@ -21,42 +21,6 @@ pub const AUX_MU_CNTL_REG = 0x3F215060;
 pub const AUX_MU_STAT_REG = 0x3F215064;
 pub const AUX_MU_BAUD_REG = 0x3F215068;
 
-var context  = NoContext{};
-pub const in = context.reader();
-pub const out = context.writer();
-
-const NoError = error{};
-
-const NoContext = struct {
-    const Reader = std.io.Reader(
-        *NoContext,
-        NoError,
-        readFn
-    );
-
-    fn readFn(_: *NoContext, buffer: []u8) NoError!usize {
-        for (buffer) |*byte| {
-            byte.* = readByte();
-        }
-        return buffer.len;
-    }
-
-    fn reader(self: *NoContext) Reader {
-        return .{ .context = self };
-    }
-
-    fn writeFn(_: *NoContext, buffer: []const u8) NoError!void {
-        for (buffer) |byte| {
-            writeByte(byte);
-        }
-        return buffer.len;
-    }
-
-    fn writer(self: *NoContext) Writer {
-        return .{ .context = self };
-    }
-};
-
 pub fn writeByte(byte: u8) void {
     // Wait for UART to become ready to transmit.
     while ((mmio.read(AUX_MU_LSR_REG) & 0x20) == 0) {}
@@ -76,19 +40,6 @@ pub fn readByte() u8 {
 pub fn write(buffer: []const u8) void {
     for (buffer) |c|
         writeByte(c);
-}
-
-/// Translates \n into \r\n
-pub fn writeText(buffer: []const u8) void {
-    for (buffer) |c| {
-        switch (c) {
-            '\n' => {
-                writeByte('\r');
-                writeByte('\n');
-            },
-            else => writeByte(c),
-        }
-    }
 }
 
 pub fn init() void {
@@ -119,14 +70,15 @@ pub fn init() void {
 
 const LogWriter = struct {
     pub const WriteError = error{};
-    pub const Writer = std.io.Writer(*Self, WriteError, write);
+    pub const Writer = std.io.Writer(*Self, WriteError, writeText);
     const Self = @This();
 
     pub fn writer(self: *Self) Writer {
         return .{ .context = self };
     }
 
-    pub fn write(self: *Self, bytes: []const u8) WriteError!usize {
+    pub fn writeText(self: *Self, bytes: []const u8) WriteError!usize {
+        _ = self;
         var count: usize = 0;
         for (bytes) |c| {
             switch (c) {

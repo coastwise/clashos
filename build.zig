@@ -26,7 +26,7 @@ pub fn build(b: *Builder) !void {
     // First we build just the bootloader executable, and then we build the actual kernel
     // which uses @embedFile on the bootloader.
     const bootloader = b.addExecutable("bootloader", "src/bootloader.zig");
-    bootloader.setLinkerScriptPath("src/bootloader.ld");
+    bootloader.setLinkerScriptPath(.{.path="src/bootloader.ld"});
     bootloader.setBuildMode(std.builtin.Mode.ReleaseSmall);
     //bootloader.setTarget(arch, builtin.Os.freestanding, environ);
     bootloader.setTarget(std.zig.CrossTarget.fromTarget(arch));
@@ -40,17 +40,22 @@ pub fn build(b: *Builder) !void {
     //exe.setTarget(arch, builtin.Os.freestanding, environ);
     exe.setTarget(std.zig.CrossTarget.fromTarget(arch));
     const linker_script = if (want_gdb) "src/qemu-gdb.ld" else "src/linker.ld";
-    exe.setLinkerScriptPath(linker_script);
+    exe.setLinkerScriptPath(.{.path=linker_script});
     //exe.addBuildOption([]const u8, "bootloader_exe_path", b.fmt("\"{s}\"", .{bootloader.getOutputPath()}));
-    exe.addBuildOption([]const u8, "bootloader_exe_path", b.fmt("{s}", .{bootloader.getOutputPath()}));
 
-    //const options = b.addOptions();
-    //options.addOption([]const u8, "bootloader_exe_path", b.fmt("\"{}\"", .{bootloader.getOutputSource().generated}));
+
+    const options = b.addOptions();
+    options.addOption([]const u8, "bootloader_exe_path", "");// b.fmt("\"{s}\"", .{bootloader.getOutputSource().getPath(b)}));
     
     exe.step.dependOn(&bootloader.step);
 
+
+
+
+
+
     const run_objcopy = b.addSystemCommand(&[_][]const u8{
-        "llvm-objcopy", exe.getOutputPath(),
+        "llvm-objcopy", "clashos.exe",
         "-O",           "binary",
         "clashos.bin",
     });
@@ -63,7 +68,7 @@ pub fn build(b: *Builder) !void {
     try qemu_args.appendSlice(&[_][]const u8{
         "qemu-system-aarch64",
         "-kernel",
-        exe.getOutputPath(),
+        "clashos.bin",
         "-m",
         "256",
         "-M",
